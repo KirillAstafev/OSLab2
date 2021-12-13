@@ -1,7 +1,8 @@
 #include <Windows.h>
 #include <stdio.h>
 
-#define PROCESS_COUNT 3
+#define PROCESS_COUNT 4
+#define FILE_COUNT 4
 
 int main(int argc, char* argv[]) {
 	SetConsoleCP(1251);
@@ -14,20 +15,20 @@ int main(int argc, char* argv[]) {
 
 	char* name = argv[1];
 
-	HANDLE hFiles[PROCESS_COUNT + 1];
+	HANDLE hFiles[FILE_COUNT];
 	SECURITY_ATTRIBUTES attr = { sizeof(attr), NULL, TRUE };
 
-	hFiles[0] = CreateFileA("f1.txt", GENERIC_WRITE, FILE_SHARE_WRITE, 
-		&attr, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-
-	hFiles[1] = CreateFileA("f2_input.txt", GENERIC_READ, FILE_SHARE_READ,
+	hFiles[0] = CreateFileA("f1_in.txt", GENERIC_READ, FILE_SHARE_READ,
 		&attr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 
-	hFiles[2] = CreateFileA("f2_output.txt", GENERIC_WRITE, FILE_SHARE_WRITE, 
+	hFiles[1] = CreateFileA("f1_out.txt", GENERIC_WRITE, FILE_SHARE_WRITE,
 		&attr, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 
-	hFiles[3] = CreateFileA("f3.txt", GENERIC_READ, FILE_SHARE_READ,
+	hFiles[2] = CreateFileA("f2_in.txt", GENERIC_READ, FILE_SHARE_READ,
 		&attr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+
+	hFiles[3] = CreateFileA("f3_out.txt", GENERIC_WRITE, FILE_SHARE_WRITE,
+		&attr, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 
 	HANDLE hProc[PROCESS_COUNT];
 	STARTUPINFOA startUpInfo[PROCESS_COUNT];
@@ -39,63 +40,63 @@ int main(int argc, char* argv[]) {
 		ZeroMemory(&(hProc[i]), sizeof(HANDLE));
 	}
 
-	HANDLE stdOutput = GetStdHandle(STD_OUTPUT_HANDLE);
-	HANDLE stdInput = GetStdHandle(STD_INPUT_HANDLE);
-
-	BOOL res1 = SetStdHandle(STD_OUTPUT_HANDLE, hFiles[0]);
+	startUpInfo[0].hStdInput = hFiles[0];
+	startUpInfo[0].hStdOutput = hFiles[1];
+	startUpInfo[0].cb = sizeof(STARTUPINFO);
+	startUpInfo[0].dwFlags = STARTF_USESTDHANDLES;
 
 	if (!CreateProcessA(NULL, argv[1], &attr, NULL, TRUE,
 		NULL, NULL, NULL, &(startUpInfo[0]), &(procInfo[0]))) {
 		
-		printf_s("Œÿ»¡ ¿ œ–» —Œ«ƒ¿Õ»» œ–Œ÷≈——¿ %d.\n", 1);
+		printf_s("Œÿ»¡ ¿ œ–» —Œ«ƒ¿Õ»» œ–Œ÷≈——¿ π%d:  Œƒ Œÿ»¡ »: %d\n", 1, GetLastError());
 		return 1;
 	}
 
 	hProc[0] = procInfo[0].hProcess;
+	WaitForSingleObject(hProc[0], INFINITE);
 
-	BOOL res2 = SetStdHandle(STD_INPUT_HANDLE, hFiles[1]);
-	BOOL res3 = SetStdHandle(STD_OUTPUT_HANDLE, hFiles[2]);
+	startUpInfo[1].hStdInput = hFiles[2];
+	startUpInfo[1].hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE);
+	startUpInfo[1].cb = sizeof(STARTUPINFO);
+	startUpInfo[1].dwFlags = STARTF_USESTDHANDLES;
 
-	if (!CreateProcessA(argv[1], NULL, &attr, NULL, TRUE,
+	if (!CreateProcessA(NULL, argv[1], &attr, NULL, TRUE,
 		NULL, NULL, NULL, &(startUpInfo[1]), &(procInfo[1]))) {
 
-		printf_s("Œÿ»¡ ¿ œ–» —Œ«ƒ¿Õ»» œ–Œ÷≈——¿ %d.\n", 2);
-		
-		WaitForSingleObject(hProc[0], INFINITE);
-		CloseHandle(hProc[0]);
-
+		printf_s("Œÿ»¡ ¿ œ–» —Œ«ƒ¿Õ»» œ–Œ÷≈——¿ π%d:  Œƒ Œÿ»¡ »: %d\n", 2, GetLastError());
 		return 1;
 	}
 
 	hProc[1] = procInfo[1].hProcess;
+	WaitForSingleObject(hProc[1], INFINITE);
 
-	WaitForMultipleObjects(2, hProc, FALSE, INFINITE);
+	startUpInfo[2].hStdOutput = hFiles[3];
+	startUpInfo[2].hStdInput = GetStdHandle(STD_INPUT_HANDLE);
+	startUpInfo[2].cb = sizeof(STARTUPINFO);
+	startUpInfo[2].dwFlags = STARTF_USESTDHANDLES;
 
-	BOOL res4 = SetStdHandle(STD_OUTPUT_HANDLE, stdOutput);
-	BOOL res5 = SetStdHandle(STD_INPUT_HANDLE, hFiles[3]);
-
-	if (!CreateProcessA(argv[1], NULL, &attr, NULL, TRUE,
+	if (!CreateProcessA(NULL, argv[1], &attr, NULL, TRUE,
 		NULL, NULL, NULL, &(startUpInfo[2]), &(procInfo[2]))) {
 
-		printf_s("Œÿ»¡ ¿ œ–» —Œ«ƒ¿Õ»» œ–Œ÷≈——¿ %d.\n", 3);
-
-		WaitForMultipleObjects(2, hProc, TRUE, INFINITE);
-		CloseHandle(hProc[0]);
-		CloseHandle(hProc[1]);
-
+		printf_s("Œÿ»¡ ¿ œ–» —Œ«ƒ¿Õ»» œ–Œ÷≈——¿ π%d:  Œƒ Œÿ»¡ »: %d\n", 3, GetLastError());
 		return 1;
 	}
 
-	WaitForMultipleObjects(3, hProc, TRUE, INFINITE);
-	BOOL res6 = SetStdHandle(STD_INPUT_HANDLE, stdInput);
+	hProc[2] = procInfo[2].hProcess;
 
-	for (int i = 0; i < PROCESS_COUNT; i++) {
-		if(hProc[i] != INVALID_HANDLE_VALUE)
-			CloseHandle(hProc[i]);
+	startUpInfo[3].cb = sizeof(STARTUPINFO);
+
+	if (!CreateProcessA(NULL, argv[1], &attr, NULL, TRUE,
+		NULL, NULL, NULL, &(startUpInfo[3]), &(procInfo[3]))) {
+
+		printf_s("Œÿ»¡ ¿ œ–» —Œ«ƒ¿Õ»» œ–Œ÷≈——¿ π%d:  Œƒ Œÿ»¡ »: %d\n", 4, GetLastError());
+		return 1;
 	}
 
-	for (int i = 0; i < PROCESS_COUNT + 1; i++)
-		CloseHandle(hFiles[i]);
+	hProc[3] = procInfo[3].hProcess;
 
+	WaitForMultipleObjects(2, hProc + 2, TRUE, INFINITE);
+	
+	system("pause");
 	return 0;
 }
